@@ -8,6 +8,11 @@ import (
 	"time"
 )
 
+// RuleService - rule service
+type RuleService struct {
+	client *Client
+}
+
 // TimeRule ...
 type TimeRule struct {
 	StartDate              string    `json:"startDate"`
@@ -78,15 +83,14 @@ type GeoFenceRuleRequest struct {
 	Description string `json:"description"`
 }
 
-// Create a time rule
-func (tr *TimeRule) Create(client *Client, request *TimeRuleRequest) error {
+// CreateTimeRule - create a time rule
+func (rls *RuleService) CreateTimeRule(request *TimeRuleRequest) (*Result, error) {
 	requestBody, err := json.Marshal(request)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	response, err := makeRequestWithHeaders(
-		client,
+	response, err := rls.client.makeRequestWithHeaders(
 		"POST",
 		"/rules/time/create",
 		bytes.NewBuffer(requestBody),
@@ -95,12 +99,12 @@ func (tr *TimeRule) Create(client *Client, request *TimeRuleRequest) error {
 		},
 	)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	defer response.Body.Close()
 
-	responseBody := new(Response)
+	responseBody := new(Result)
 	json.NewDecoder(response.Body).Decode(responseBody)
 
 	if len(responseBody.ValidationErrors) > 0 {
@@ -108,25 +112,23 @@ func (tr *TimeRule) Create(client *Client, request *TimeRuleRequest) error {
 		for _, err := range responseBody.ValidationErrors {
 			errors = append(errors, fmt.Errorf("%s: %s", err.Field, err.Message))
 		}
-		return errors
+		return nil, errors
 	}
 
-	if data, ok := responseBody.Data.(TimeRule); ok {
-		tr = &data
-		return nil
+	if _, ok := responseBody.Data.(TimeRule); ok {
+		return responseBody, nil
 	}
-	return Errors{errors.New("response.data is not of type TimeRule")}
+	return nil, Errors{errors.New("response.data is not of type TimeRule")}
 }
 
 // Create a geofence rule
-func (gr *GeoFenceRule) Create(client *Client, request *GeoFenceRuleRequest) error {
+func (rls *RuleService) Create(request *GeoFenceRuleRequest) (*Result, error) {
 	requestBody, err := json.Marshal(request)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	response, err := makeRequestWithHeaders(
-		client,
+	response, err := rls.client.makeRequestWithHeaders(
 		"POST",
 		"/rules/time/create",
 		bytes.NewBuffer(requestBody),
@@ -135,12 +137,12 @@ func (gr *GeoFenceRule) Create(client *Client, request *GeoFenceRuleRequest) err
 		},
 	)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	defer response.Body.Close()
 
-	responseBody := new(Response)
+	responseBody := new(Result)
 	json.NewDecoder(response.Body).Decode(responseBody)
 
 	if len(responseBody.ValidationErrors) > 0 {
@@ -148,12 +150,11 @@ func (gr *GeoFenceRule) Create(client *Client, request *GeoFenceRuleRequest) err
 		for _, err := range responseBody.ValidationErrors {
 			errors = append(errors, fmt.Errorf("%s: %s", err.Field, err.Message))
 		}
-		return errors
+		return nil, errors
 	}
 
-	if data, ok := responseBody.Data.(GeoFenceRule); ok {
-		gr = &data
-		return nil
+	if _, ok := responseBody.Data.(GeoFenceRule); ok {
+		return responseBody, nil
 	}
-	return Errors{errors.New("response.data is not of type GeoFenceRule")}
+	return nil, Errors{errors.New("response.data is not of type GeoFenceRule")}
 }

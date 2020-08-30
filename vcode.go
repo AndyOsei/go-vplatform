@@ -8,44 +8,49 @@ import (
 	"time"
 )
 
-// Vcode ...
-type Vcode struct {
-	TotalScansCount  uint
-	UniqueScansCount uint
-	TotalOpensCount  uint
-	isPublic         bool
-	DateCreated      time.Time
-	LastScanDate     time.Time
-	Description      string
-	UTI              string
-	Status           string
-	ActiveCount      uint
-	NotActiveCount   uint
-	UnassignedCount  uint
+// VCodeService - vcode service
+type VCodeService struct {
+	client *Client
 }
 
-// CreateVcodeRequest - request body sent to create a vcode
-type CreateVcodeRequest struct {
+// VCodeCreateInputModel - VCode creation model
+type VCodeCreateInputModel struct {
 	Description string `json:"description"`
 	Quantity    uint   `json:"quantity"`
 }
 
-// Create a vcode
-func (vc *Vcode) Create(client *Client, description string, quantity uint) Errors {
-	if description == "" {
-		return Errors{errors.New("description not found")}
-	}
+// VCodeOutputModel - VCode information and assigned packages.
+type VCodeOutputModel struct {
+	Description string               `json:"description"`
+	Packages    []PackageOutputModel `json:"packages"`
+	UTI         string               `json:"uti"`
+}
 
-	requestBody, err := json.Marshal(CreateVcodeRequest{
-		Description: description,
-		Quantity:    quantity,
-	})
+// VCodeDetailsOutputModel - VCode details
+type VCodeDetailsOutputModel struct {
+	TotalScansCount  uint      `json:"totalScansCount"`
+	UniqueScansCount uint      `json:"uniqueScansCount"`
+	TotalOpensCount  uint      `json:"totalOpensCount"`
+	IsPublic         bool      `json:"isPublic"`
+	DateCreated      time.Time `json:"dateCreated"`
+	LastScanDate     time.Time `json:"lastScanDate"`
+	Description      string    `json:"description"`
+	UTI              string    `json:"uti"`
+	Status           string    `json:"status"`
+	ActiveCount      uint      `json:"activeCount"`
+	NotActiveCount   uint      `json:"notActiveCount"`
+	UnassignedCount  uint      `json:"unassignedCount"`
+}
+
+// Create - create a vcode
+func (vcs *VCodeService) Create(request *VCodeCreateInputModel) (*Result, error) {
+
+	requestBody, err := json.Marshal(request)
 	if err != nil {
-		return Errors{err}
+		return nil, Errors{err}
 	}
 
-	response, err := makeRequestWithHeaders(
-		client,
+	response, err := vcs.client.makeRequestWithHeaders(
 		"POST",
 		"/vcode/create",
 		bytes.NewBuffer(requestBody),
@@ -54,12 +59,12 @@ func (vc *Vcode) Create(client *Client, description string, quantity uint) Error
 		},
 	)
 	if err != nil {
-		return Errors{err}
+		return nil, Errors{err}
 	}
 
 	defer response.Body.Close()
 
-	responseBody := new(Response)
+	responseBody := new(Result)
 	json.NewDecoder(response.Body).Decode(responseBody)
 
 	if len(responseBody.ValidationErrors) > 0 {
@@ -67,12 +72,40 @@ func (vc *Vcode) Create(client *Client, description string, quantity uint) Error
 		for _, err := range responseBody.ValidationErrors {
 			errors = append(errors, fmt.Errorf("%s: %s", err.Field, err.Message))
 		}
-		return errors
+		return nil, errors
 	}
 
 	if data, ok := responseBody.Data.(string); ok && data != "" {
-		vc.UTI = data
-		return nil
+		return responseBody, nil
 	}
-	return Errors{errors.New("response.data is not a string or it's empty")}
+	return nil, Errors{errors.New("response.data is not a string or it's empty")}
+}
+
+// GetDetailsByUTI - Get VCode details by uti
+func (vcs *VCodeService) GetDetailsByUTI(uti string) (*Result, error) {
+	response, err := vcs.client.makeRequestWithURLParams(
+		"GET",
+		fmt.Sprintf("/vcode/%s", uti),
+	)
+	if err != nil {
+		return nil, Errors{err}
+	}
+
+	defer response.Body.Close()
+
+	responseBody := new(Result)
+	json.NewDecoder(response.Body).Decode(responseBody)
+
+	if len(responseBody.ValidationErrors) > 0 {
+		errors := Errors{}
+		for _, err := range responseBody.ValidationErrors {
+			errors = append(errors, fmt.Errorf("%s: %s", err.Field, err.Message))
+		}
+		return nil, errors
+	}
+
+	if _, ok := responseBody.Data.(VCodeDetailsOutputModel); ok {
+		return responseBody, nil
+	}
+	return nil, Errors{errors.New("response.data is not of type Vcode")}
 }

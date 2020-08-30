@@ -7,26 +7,31 @@ import (
 	"fmt"
 )
 
-// Action ...
-type Action struct {
-	PublicID               string                 `json:"publicId"`
-	Description            string                 `json:"description"`
-	Type                   string                 `json:"type"`
-	Data                   map[string]interface{} `json:"data"`
-	PackageUsage           uint                   `json:"packageUsage"`
-	UnassignedPackageUsage uint                   `json:"unassignedPackageUsage"`
+// ActionService - action service
+type ActionService struct {
+	client *Client
 }
 
-// URLActionRequest - url action request body
-type URLActionRequest struct {
+// ActionOutputModel ...
+type ActionOutputModel struct {
+	PublicID               string      `json:"publicId"`
+	Description            string      `json:"description"`
+	Type                   string      `json:"type"`
+	Data                   interface{} `json:"data"`
+	PackageUsage           uint        `json:"packageUsage"`
+	UnassignedPackageUsage uint        `json:"unassignedPackageUsage"`
+}
+
+// URLActionDataInputModel - url action input model
+type URLActionDataInputModel struct {
 	URL          string `json:"url"`
 	InAppBrowser bool   `json:"inapp_browser"`
 	PublicID     string `json:"publicId"`
 	Description  string `json:"description"`
-}
+} // UrlActionDataInputModel
 
-// AppLinkActionRequest - app link action request body
-type AppLinkActionRequest struct {
+// AppLinkActionDataInputModel - app link action input model
+type AppLinkActionDataInputModel struct {
 	AppLink     string `json:"appLink"`
 	IosLink     string `json:"iosLink"`
 	AndroidLink string `json:"androidLink"`
@@ -34,8 +39,8 @@ type AppLinkActionRequest struct {
 	Description string `json:"description"`
 }
 
-// ContactActionRequest - contact card action request body
-type ContactActionRequest struct {
+// ContactActionDataInputModel - contact card action input model
+type ContactActionDataInputModel struct {
 	Name                 string `json:"name"`
 	Title                string `json:"title"`
 	Phone                string `json:"phone"`
@@ -54,14 +59,13 @@ type ContactActionRequest struct {
 }
 
 // CreateURLAction - create url action
-func (at *Action) CreateURLAction(client *Client, request *URLActionRequest) error {
+func (ats *ActionService) CreateURLAction(request *URLActionDataInputModel) (*Result, error) {
 	requestBody, err := json.Marshal(request)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	response, err := makeRequestWithHeaders(
-		client,
+	response, err := ats.client.makeRequestWithHeaders(
 		"POST",
 		"/action/url",
 		bytes.NewBuffer(requestBody),
@@ -70,11 +74,11 @@ func (at *Action) CreateURLAction(client *Client, request *URLActionRequest) err
 		},
 	)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	defer response.Body.Close()
-	responseBody := new(Response)
+	responseBody := new(Result)
 	json.NewDecoder(response.Body).Decode(responseBody)
 
 	if len(responseBody.ValidationErrors) > 0 {
@@ -82,25 +86,23 @@ func (at *Action) CreateURLAction(client *Client, request *URLActionRequest) err
 		for _, err := range responseBody.ValidationErrors {
 			errors = append(errors, fmt.Errorf("%s: %s", err.Field, err.Message))
 		}
-		return errors
+		return nil, errors
 	}
 
-	if data, ok := responseBody.Data.(Action); ok {
-		at = &data
-		return nil
+	if _, ok := responseBody.Data.(ActionOutputModel); ok {
+		return responseBody, nil
 	}
-	return Errors{errors.New("response.data is not of type Action")}
+	return nil, Errors{errors.New("response.data is not of type Action")}
 }
 
 // CreateAppLinkAction - create app link action
-func (at *Action) CreateAppLinkAction(client *Client, request *AppLinkActionRequest) error {
+func (ats *ActionService) CreateAppLinkAction(request *AppLinkActionDataInputModel) (*Result, error) {
 	requestBody, err := json.Marshal(request)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	response, err := makeRequestWithHeaders(
-		client,
+	response, err := ats.client.makeRequestWithHeaders(
 		"POST",
 		"/action/applink",
 		bytes.NewBuffer(requestBody),
@@ -109,11 +111,11 @@ func (at *Action) CreateAppLinkAction(client *Client, request *AppLinkActionRequ
 		},
 	)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	defer response.Body.Close()
-	responseBody := new(Response)
+	responseBody := new(Result)
 	json.NewDecoder(response.Body).Decode(responseBody)
 
 	if len(responseBody.ValidationErrors) > 0 {
@@ -121,25 +123,23 @@ func (at *Action) CreateAppLinkAction(client *Client, request *AppLinkActionRequ
 		for _, err := range responseBody.ValidationErrors {
 			errors = append(errors, fmt.Errorf("%s: %s", err.Field, err.Message))
 		}
-		return errors
+		return nil, errors
 	}
 
-	if data, ok := responseBody.Data.(Action); ok {
-		at = &data
-		return nil
+	if _, ok := responseBody.Data.(ActionOutputModel); ok {
+		return responseBody, nil
 	}
-	return Errors{errors.New("response.data is not of type Action")}
+	return nil, Errors{errors.New("response.data is not of type Action")}
 }
 
 // CreateContactAction - create contact card action
-func (at *Action) CreateContactAction(client *Client, request *ContactActionRequest) error {
+func (ats *ActionService) CreateContactAction(request *ContactActionDataInputModel) (*Result, error) {
 	requestBody, err := json.Marshal(request)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	response, err := makeRequestWithHeaders(
-		client,
+	response, err := ats.client.makeRequestWithHeaders(
 		"POST",
 		"/action/contact",
 		bytes.NewBuffer(requestBody),
@@ -148,11 +148,11 @@ func (at *Action) CreateContactAction(client *Client, request *ContactActionRequ
 		},
 	)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	defer response.Body.Close()
-	responseBody := new(Response)
+	responseBody := new(Result)
 	json.NewDecoder(response.Body).Decode(responseBody)
 
 	if len(responseBody.ValidationErrors) > 0 {
@@ -160,12 +160,11 @@ func (at *Action) CreateContactAction(client *Client, request *ContactActionRequ
 		for _, err := range responseBody.ValidationErrors {
 			errors = append(errors, fmt.Errorf("%s: %s", err.Field, err.Message))
 		}
-		return errors
+		return nil, errors
 	}
 
-	if data, ok := responseBody.Data.(Action); ok {
-		at = &data
-		return nil
+	if _, ok := responseBody.Data.(ActionOutputModel); ok {
+		return responseBody, nil
 	}
-	return Errors{errors.New("response.data is not of type Action")}
+	return nil, Errors{errors.New("response.data is not of type Action")}
 }

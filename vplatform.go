@@ -6,24 +6,31 @@ import (
 	"net/http"
 )
 
-// Client ...
+// Client - vplatform client object
 type Client struct {
+	httpClient *http.Client
+
 	BaseURL               string
 	VPlatformPartnerToken string
 	VPlatformAuthToken    string
-	httpClient            *http.Client
+
+	Auth    *AuthService
+	VCode   *VCodeService
+	Package *PackageService
+	Action  *ActionService
+	Rule    *RuleService
 }
 
-// Response - response object
-type Response struct {
-	Data             interface{}       `json:"data"`
-	Message          string            `json:"message"`
-	ValidationErrors []ValidationError `json:"validationErrors"`
-	StackTrace       string            `json:"stackTrace"`
+// Result - Response Model
+type Result struct {
+	Data             interface{}              `json:"data"`
+	Message          string                   `json:"message"`
+	ValidationErrors []ValidationErrorMessage `json:"validationErrors"`
+	StackTrace       string                   `json:"stackTrace"`
 }
 
-// ValidationError - validation error
-type ValidationError struct {
+// ValidationErrorMessage - validation error message model
+type ValidationErrorMessage struct {
 	Field   string `json:"field"`
 	Message string `json:"message"`
 }
@@ -46,47 +53,71 @@ func (e Errors) Error() string {
 // NewClient - returns an instance of vplatform client
 func NewClient(baseURL string, partnerToken string, authToken string) *Client {
 
-	return &Client{
+	client := &Client{
+		httpClient:            &http.Client{},
 		BaseURL:               baseURL,
 		VPlatformPartnerToken: partnerToken,
 		VPlatformAuthToken:    authToken,
-		httpClient:            &http.Client{},
 	}
+
+	client.Auth = &AuthService{client: client}
+	client.Package = &PackageService{client: client}
+	client.VCode = &VCodeService{client: client}
+	client.Action = &ActionService{client: client}
+	client.Rule = &RuleService{client: client}
+
+	return client
 }
 
-func makeRequest(client *Client, method string, url string, requestBody io.Reader) (*http.Response, error) {
+func (cl *Client) makeRequest(method string, url string, requestBody io.Reader) (*http.Response, error) {
 	request, err := http.NewRequest(
 		method,
-		fmt.Sprintf("%s%s", client.BaseURL, url),
+		fmt.Sprintf("%s%s", cl.BaseURL, url),
 		requestBody,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	request.Header.Set("vplatform-partner-token", client.VPlatformPartnerToken)
-	request.Header.Set("vplatform-auth-token", client.VPlatformAuthToken)
+	request.Header.Set("vplatform-partner-token", cl.VPlatformPartnerToken)
+	request.Header.Set("vplatform-auth-token", cl.VPlatformAuthToken)
 
-	return client.httpClient.Do(request)
+	return cl.httpClient.Do(request)
 }
 
-func makeRequestWithHeaders(
-	client *Client, method string, url string, requestBody io.Reader, headers map[string]string,
+func (cl *Client) makeRequestWithHeaders(
+	method string, url string, requestBody io.Reader, headers map[string]string,
 ) (*http.Response, error) {
 	request, err := http.NewRequest(
 		method,
-		fmt.Sprintf("%s%s", client.BaseURL, url),
+		fmt.Sprintf("%s%s", cl.BaseURL, url),
 		requestBody,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	request.Header.Set("vplatform-partner-token", client.VPlatformPartnerToken)
-	request.Header.Set("vplatform-auth-token", client.VPlatformAuthToken)
+	request.Header.Set("vplatform-partner-token", cl.VPlatformPartnerToken)
+	request.Header.Set("vplatform-auth-token", cl.VPlatformAuthToken)
 
 	for key, value := range headers {
 		request.Header.Set(key, value)
 	}
-	return client.httpClient.Do(request)
+	return cl.httpClient.Do(request)
+}
+
+func (cl *Client) makeRequestWithURLParams(method string, url string) (*http.Response, error) {
+	request, err := http.NewRequest(
+		method,
+		fmt.Sprintf("%s%s", cl.BaseURL, url),
+		nil,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	request.Header.Set("vplatform-partner-token", cl.VPlatformPartnerToken)
+	request.Header.Set("vplatform-auth-token", cl.VPlatformAuthToken)
+
+	return cl.httpClient.Do(request)
 }

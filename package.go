@@ -9,6 +9,11 @@ import (
 	"bytes"
 )
 
+// PackageService - package service
+type PackageService struct {
+	client *Client
+}
+
 // Package - package object
 type Package struct {
 	PublicID string `json:"publicId"`
@@ -36,15 +41,22 @@ type CreatePackageRequest struct {
 	MaxumberOfScans  uint      `json:"maxNumberOfScans"`
 }
 
-// Create a package
-func (pkg *Package) Create(client *Client, request *CreatePackageRequest) error {
+// PackageOutputModel ...
+type PackageOutputModel struct {
+	PublicID string      `json:"publicId"`
+	Title    string      `json:"title"`
+	Type     string      `json:"type"`
+	data     interface{} `json:"data"`
+}
+
+// Create - create a package
+func (pks *PackageService) Create(request *CreatePackageRequest) (*Result, error) {
 	requestBody, err := json.Marshal(request)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	response, err := makeRequestWithHeaders(
-		client,
+	response, err := pks.client.makeRequestWithHeaders(
 		"POST",
 		"/package/create",
 		bytes.NewBuffer(requestBody),
@@ -53,12 +65,12 @@ func (pkg *Package) Create(client *Client, request *CreatePackageRequest) error 
 		},
 	)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	defer response.Body.Close()
 
-	responseBody := new(Response)
+	responseBody := new(Result)
 	json.NewDecoder(response.Body).Decode(responseBody)
 
 	if len(responseBody.ValidationErrors) > 0 {
@@ -66,13 +78,12 @@ func (pkg *Package) Create(client *Client, request *CreatePackageRequest) error 
 		for _, err := range responseBody.ValidationErrors {
 			errors = append(errors, fmt.Errorf("%s: %s", err.Field, err.Message))
 		}
-		return errors
+		return nil, errors
 	}
 
 	if data, ok := responseBody.Data.(string); ok && data != "" {
-		pkg.PublicID = data
-		return nil
+		return responseBody, nil
 	}
-	return Errors{errors.New("response.data is not a string or it's empty")}
+	return nil, Errors{errors.New("response.data is not a string or it's empty")}
 
 }
