@@ -46,7 +46,7 @@ type PackageOutputModel struct {
 	PublicID string      `json:"publicId"`
 	Title    string      `json:"title"`
 	Type     string      `json:"type"`
-	data     interface{} `json:"data"`
+	Data     interface{} `json:"data"`
 }
 
 // Create - create a package
@@ -84,6 +84,7 @@ func (pks *PackageService) Create(request *CreatePackageRequest) (*Result, error
 	if data, ok := responseBody.Data.(string); ok && data != "" {
 		return responseBody, nil
 	}
+
 	return nil, Errors{errors.New("response.data is not a string or it's empty")}
 
 }
